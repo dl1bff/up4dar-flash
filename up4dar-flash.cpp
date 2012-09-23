@@ -542,6 +542,13 @@ static int recv_packet( unsigned char * p, int len )
 	case 0xD4: // cmd exec
 		if (len >= 2)
 		{
+			if ((recv_state == 1) && (p[1] == 2)) // switch to service mode failed:
+										// UP4DAR already in service mode
+			{
+				send_cmd_without_arg(0xE1); // switch to flash mode
+				recv_state = 2;
+				break;
+			}
 			
 			if (p[1] != 1) // unexpected result
 			{
