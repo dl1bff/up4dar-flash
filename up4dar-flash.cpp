@@ -32,11 +32,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define SOFTWARE_MATURITY_EXPERIMENTAL	0x40
 
 
-#define SWVER_BYTE0		(SOFTWARE_IMAGE_FLASH_TOOL | SOFTWARE_MATURITY_NORMAL)
-// #define SWVER_BYTE0		(SOFTWARE_IMAGE_FLASH_TOOL | SOFTWARE_MATURITY_EXPERIMENTAL)
+// #define SWVER_BYTE0		(SOFTWARE_IMAGE_FLASH_TOOL | SOFTWARE_MATURITY_NORMAL)
+#define SWVER_BYTE0		(SOFTWARE_IMAGE_FLASH_TOOL | SOFTWARE_MATURITY_EXPERIMENTAL)
 #define SWVER_BYTE1		1
 #define SWVER_BYTE2		0
-#define SWVER_BYTE3		3
+#define SWVER_BYTE3		4
 
 unsigned char sw_version[4] = { SWVER_BYTE0, SWVER_BYTE1, SWVER_BYTE2, SWVER_BYTE3 };
 
@@ -44,7 +44,7 @@ unsigned char sw_version[4] = { SWVER_BYTE0, SWVER_BYTE1, SWVER_BYTE2, SWVER_BYT
 
 void usage( _TCHAR* name )
 {
-	wprintf(_T("\nUsage: %s <COMPORT> <FirmwareFile>\n"), name);
+	wprintf(_T("\nUsage: %s <COMPORT> <FirmwareFile> [/DEBUG]\n"), name);
 
 	wprintf(_T("\nThe following COM ports are active on this system:\n") );
 
@@ -82,6 +82,7 @@ int fw_send_counter;
 
 HANDLE hSerial;
 
+int debug_flag = 0;
 
 
 static int hex_value(int ch)
@@ -257,10 +258,40 @@ static void send_byte (int d)
 	}
 }
 
+
+static void print_debug ( const _TCHAR * prefix, int cmd, int len,
+						unsigned char * d )
+{
+	if (debug_flag != 0)
+	{
+		int i;
+
+		wprintf(_T("%s: %02x"), prefix, cmd);
+
+#define MAX_OUTPUT_DEBUG_BYTES 8
+
+		for (i=0; (i < len) && (i < MAX_OUTPUT_DEBUG_BYTES); i++)
+		{
+			wprintf(_T(" %02x"), d[i]);
+		}
+
+		if (len > MAX_OUTPUT_DEBUG_BYTES)
+		{
+			wprintf(_T(" ..."));
+		}
+
+		wprintf(_T("\n"));
+	}
+}
+
+
 static void send_cmd (int cmd, int len, unsigned char * d)
 {
 	unsigned char buf[2];
 	DWORD dwBytes;
+	int i;
+
+	print_debug(_T("TX"), cmd, len, d);
 
 	buf[0] = 0x10;
 	buf[1] = 0x02; // STX
@@ -277,8 +308,6 @@ static void send_cmd (int cmd, int len, unsigned char * d)
 		wprintf(_T("\nERROR: WriteFile short write\n") );
 		exit(2);
 	}
-
-	int i;
 
 	send_byte(cmd);
 
@@ -406,6 +435,8 @@ static int recv_packet( unsigned char * p, int len )
 	int i;
 	_TCHAR cbuf[20];
 
+	print_debug(_T("RX"), p[0], len-1, p+1);
+
 	switch (p[0])
 	{
 	case 0x01:
@@ -532,6 +563,10 @@ static int recv_packet( unsigned char * p, int len )
 				{
 					wprintf(_T("sending block %3d of %3d\r"),
 						fw_send_counter+1, (fw_buf_len / FLASH_BLOCK_SIZE));
+					if (debug_flag != 0)
+					{
+						wprintf(_T("\n"));
+					}
 					send_cmd( 0xE2, FLASH_BLOCK_SIZE, fw_buf +
 						(fw_send_counter * FLASH_BLOCK_SIZE));
 				}
@@ -558,12 +593,16 @@ static int recv_packet( unsigned char * p, int len )
 		break;
 
 	case 0xE4: // update mode
-		wprintf (_T("board is now in update mode\n"));
+		wprintf (_T("UP4DAR is now in update mode\n"));
 		if (recv_state == 2)
 		{
 			recv_state = 3;
 			wprintf(_T("sending block   1 of %3d\r"),
 						(fw_buf_len / FLASH_BLOCK_SIZE));
+			if (debug_flag != 0)
+			{
+				wprintf(_T("\n"));
+			}
 			send_cmd( 0xE2, FLASH_BLOCK_SIZE, fw_buf);
 			fw_send_counter = 0;
 		}
@@ -667,15 +706,23 @@ int _tmain(int argc, _TCHAR* argv[])
 {
 	_TCHAR cbuf[20];
 
-	if (argc != 3)
+	if (argc < 3)
 	{
 		usage(argv[0]);
 	}
 
+	if (argc > 3)
+	{
+		if (wcscmp( argv[3], _T("/DEBUG")) == 0)
+		{
+			debug_flag = 1;
+		}
+	}
+
 	version2string(cbuf, sw_version);
 
-	wprintf(_T("\nUP4DAR Flash Tool Version: %s\n\n"), cbuf );
-
+	wprintf(_T("\nUP4DAR Flash Tool Version: %s\n"), cbuf );
+	wprintf(_T(" (C) 2012 Michael Dirska, DL1BFF\n\n"));
 	
 	
 	hSerial = CreateFile(argv[1],  // COM port
