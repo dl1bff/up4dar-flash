@@ -36,7 +36,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 // #define SWVER_BYTE0		(SOFTWARE_IMAGE_FLASH_TOOL | SOFTWARE_MATURITY_EXPERIMENTAL)
 #define SWVER_BYTE1		1
 #define SWVER_BYTE2		0
-#define SWVER_BYTE3		4
+#define SWVER_BYTE3		5
 
 unsigned char sw_version[4] = { SWVER_BYTE0, SWVER_BYTE1, SWVER_BYTE2, SWVER_BYTE3 };
 
@@ -815,7 +815,7 @@ int _tmain(int argc, _TCHAR* argv[])
 			usage(argv[0]);
 		}
 	
-		wprintf(_T("\nERROR: could not firmware file port %s\n"), argv[2] );
+		wprintf(_T("\nERROR: could not open firmware file %s\n"), argv[2] );
 		usage(argv[0]);
 	}
 
